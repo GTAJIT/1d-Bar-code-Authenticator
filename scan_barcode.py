@@ -2,37 +2,49 @@ import cv2
 from pyzbar.pyzbar import decode
 
 # Load your barcode image file
-image = cv2.imread("images/debo_code.jpeg")
-print("Image loaded:", image is not None)
+# image = cv2.imread("images/shreya_code.jpeg")
+image = cv2.imread("images/jit_code.jpeg")
+# print("Image loaded:", image is not None)
 
-# Convert to grayscale to improve detection
-gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+if image is None:
+    print("Error: Failed to load image.")
+    exit()
 
-# Decode barcodes
-decoded_objects = decode(gray)
+# Try all 4 orientations (0, 90, 180, 270 degrees)
+found = False
+for angle in [0, 90, 180, 270]:
+    if angle != 0:
+        # Rotate image clockwise
+        image_rotated = cv2.rotate(image, {
+            90: cv2.ROTATE_90_CLOCKWISE,
+            180: cv2.ROTATE_180,
+            270: cv2.ROTATE_90_COUNTERCLOCKWISE
+        }[angle])
+    else:
+        image_rotated = image.copy()
 
-if decoded_objects:
-    for obj in decoded_objects:
-        barcode_data = obj.data.decode("utf-8")
-        barcode_type = obj.type
-        print(f"Detected {barcode_type}: {barcode_data}")
+    gray = cv2.cvtColor(image_rotated, cv2.COLOR_BGR2GRAY)
+    decoded_objects = decode(gray)
 
-        # Draw rectangle around barcode
-        # (x, y, w, h) = obj.rect
-        # cv2.rectangle(image, (x, y), (x + w, y + h), (0, 255, 0), 2)
-        # cv2.putText(
-        #     image,
-        #     barcode_data,
-        #     (x, y - 10),
-        #     cv2.FONT_HERSHEY_SIMPLEX,
-        #     0.6,
-        #     (0, 255, 0),
-        #     2,
-        # )
+    if decoded_objects:
+        found = True
+        # print(f"Barcode detected at {angle}° rotation:")
+        for obj in decoded_objects:
+            barcode_data = obj.data.decode("utf-8")
+            barcode_type = obj.type
+            print(f"{barcode_type}: {barcode_data}")
 
-    # Show result
-    # cv2.imshow("Barcode Scanner", image)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
-else:
-    print("No barcode detected.")
+            # Draw rectangle (optional)
+            (x, y, w, h) = obj.rect
+            cv2.rectangle(image_rotated, (x, y), (x + w, y + h), (0, 255, 0), 2)
+            cv2.putText(image_rotated, barcode_data, (x, y - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+
+        # Show result (optional)
+        # cv2.imshow("Detected Barcode", image_rotated)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
+        break
+
+if not found:
+    print("No barcode detected in any orientation.")
