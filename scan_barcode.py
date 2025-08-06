@@ -1,38 +1,44 @@
 import cv2
 from pyzbar.pyzbar import decode
 
-# Load your barcode image file
-image = cv2.imread("images/jit_code.jpeg")  # <-- change filename if needed
-print("Image loaded:", image is not None)
+# Start webcam capture (0 = default camera)
+cap = cv2.VideoCapture(0)
 
-# Convert to grayscale to improve detection
-gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+if not cap.isOpened():
+    print("Error: Cannot access the webcam.")
+    exit()
 
-# Decode barcodes
-decoded_objects = decode(gray)
+print("Press 'q' to quit.")
 
-if decoded_objects:
-    for obj in decoded_objects:
-        barcode_data = obj.data.decode("utf-8")
-        barcode_type = obj.type
-        print(f"Detected {barcode_type}: {barcode_data}")
+try:
+    while True:
+        success, frame = cap.read()
+        if not success:
+            break
 
-        # Draw rectangle around barcode
-        (x, y, w, h) = obj.rect
-        cv2.rectangle(image, (x, y), (x + w, y + h), (0, 255, 0), 2)
-        cv2.putText(
-            image,
-            barcode_data,
-            (x, y - 10),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.6,
-            (0, 255, 0),
-            2,
-        )
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        decoded_objects = decode(gray)
 
-    # Show result
-    cv2.imshow("Barcode Scanner", image)
-    cv2.waitKey(0)
+        for obj in decoded_objects:
+            barcode_data = obj.data.decode("utf-8")
+            barcode_type = obj.type
+            print(f"Detected {barcode_type}: {barcode_data}")
+
+            (x, y, w, h) = obj.rect
+            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+            cv2.putText(frame, barcode_data, (x, y - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+
+        cv2.imshow("Live Barcode Scanner", frame)
+
+        key = cv2.waitKey(1)
+        if key == ord("q") or key == 27:  # q or Esc
+            break
+
+except KeyboardInterrupt:
+    print("Interrupted by user.")
+
+finally:
+    cap.release()
     cv2.destroyAllWindows()
-else:
-    print("No barcode detected.")
+
