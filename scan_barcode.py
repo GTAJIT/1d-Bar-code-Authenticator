@@ -2,7 +2,7 @@ import cv2
 from pyzbar.pyzbar import decode
 
 # Load your barcode image file
-image = cv2.imread("images/jit_code.jpeg")
+image = cv2.imread("images/debo_code.jpeg")
 print("Image loaded:", image is not None)
 
 # Convert to grayscale to improve detection
