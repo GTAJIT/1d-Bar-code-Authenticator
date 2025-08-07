@@ -1,38 +1,65 @@
 import cv2
 from pyzbar.pyzbar import decode
+import numpy as np
 
-# Load your barcode image file
-image = cv2.imread("images/jit_code.jpeg")
-print("Image loaded:", image is not None)
+# Initialize the webcam (try index 1 if 0 fails)
+cap = cv2.VideoCapture(0)
 
-# Convert to grayscale to improve detection
-gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+if not cap.isOpened():
+    print("Error: Cannot open webcam")
+    exit()
 
-# Decode barcodes
-decoded_objects = decode(gray)
+# Function to preprocess frame for better blurry detection
+def preprocess(frame):
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    sharpened = cv2.GaussianBlur(gray, (0, 0), 3)
+    sharpened = cv2.addWeighted(gray, 1.5, sharpened, -0.5, 0)
+    return sharpened
 
-if decoded_objects:
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        print("Failed to grab frame.")
+        break
+
+    processed_frame = preprocess(frame)
+
+    decoded_objects = decode(processed_frame)
+
     for obj in decoded_objects:
-        barcode_data = obj.data.decode("utf-8")
-        barcode_type = obj.type
-        print(f"Detected {barcode_type}: {barcode_data}")
+        try:
+            points = obj.polygon
 
-        # Draw rectangle around barcode
-        # (x, y, w, h) = obj.rect
-        # cv2.rectangle(image, (x, y), (x + w, y + h), (0, 255, 0), 2)
-        # cv2.putText(
-        #     image,
-        #     barcode_data,
-        #     (x, y - 10),
-        #     cv2.FONT_HERSHEY_SIMPLEX,
-        #     0.6,
-        #     (0, 255, 0),
-        #     2,
-        # )
+            if len(points) >= 4:
+                pts = [(point.x, point.y) for point in points]
+                barcode_data = obj.data.decode("utf-8")
+                barcode_type = obj.type
 
-    # Show result
-    # cv2.imshow("Barcode Scanner", image)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
-else:
-    print("No barcode detected.")
+                # Use green if decoded properly
+                color = (0, 255, 0) if barcode_data else (0, 0, 255)
+
+                # Draw barcode border
+                for i in range(len(pts)):
+                    cv2.line(frame, pts[i], pts[(i + 1) % len(pts)], color, 2)
+
+                # Put barcode info text
+                cv2.putText(
+                    frame,
+                    f"{barcode_type}: {barcode_data}",
+                    (pts[0][0], pts[0][1] - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.6,
+                    color,
+                    2,
+                )
+        except Exception as e:
+            print("Decode error:", e)
+            continue
+
+    cv2.imshow("Universal Barcode Scanner", frame)
+
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+cap.release()
+cv2.destroyAllWindows()
